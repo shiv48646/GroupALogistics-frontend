@@ -1,0 +1,282 @@
+﻿// store/index.js - Cleaned Version
+import { configureStore } from '@reduxjs/toolkit';
+import { combineReducers } from '@reduxjs/toolkit';
+import { persistStore, persistReducer } from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Import your existing reducers
+import userReducer from './reducers/userReducer';
+import appReducer from './reducers/appReducer';
+
+// Import only the orders slice that we know works
+import ordersReducer from './slices/ordersSlice';
+import fleetReducer from './slices/fleetSlice';
+import routesReducer from './slices/routesSlice';
+import analyticsReducer from './slices/analyticsSlice';
+
+// Persist configuration
+const persistConfig = {
+  key: 'root-v2',
+  storage: AsyncStorage,
+  whitelist: ['user', 'orders', 'routes'], // Only persist user and orders
+};
+
+// Combine reducers - only include confirmed working ones
+const rootReducer = combineReducers({
+  user: userReducer,
+  app: appReducer,
+  orders: ordersReducer,
+  fleet: fleetReducer,
+  routes: routesReducer,
+});
+
+// Create persisted reducer
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
+// Configure store
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+      },
+    }),
+});
+
+// Create persistor
+export const persistor = persistStore(store);
+
+const rootReducer = combineReducers({
+  user: userReducer,
+  app: appReducer,
+  orders: ordersReducer,
+  fleet: fleetReducer,
+  routes: routesReducer,
+  analytics: analyticsReducer,  // ADD THIS
+});
+
+// Force initialize fleet if empty
+setTimeout(() => {
+  const state = store.getState();
+  if (!state.fleet?.vehicles || state.fleet.vehicles.length === 0) {
+    console.log('Fleet empty - forcing initialization');
+    store.dispatch({ type: 'fleet/setVehicles', payload: [
+      // Copy first vehicle as test
+      {
+        id: 'FL-001',
+        registrationNumber: 'DL 1C AB 1234',
+        type: 'Truck',
+        model: 'Tata LPT 1613',
+        capacity: '16 Tons',
+        status: 'active',
+        driver: { id: 'D-001', name: 'Rajesh Kumar', phone: '+91 98765 43210', license: 'DL1520200012345' },
+        currentLocation: { lat: 28.7041, lng: 77.1025, address: 'Connaught Place, New Delhi' },
+        fuelLevel: 75,
+        lastMaintenance: '2025-09-15',
+        nextMaintenance: '2025-10-15',
+        mileage: 145280,
+        insurance: { provider: 'ICICI Lombard', policyNumber: 'POL2025001234', expiryDate: '2026-03-15' },
+        documents: { rc: { status: 'valid', expiryDate: '2030-05-20' }, permit: { status: 'valid', expiryDate: '2026-01-10' }, fitness: { status: 'valid', expiryDate: '2026-09-30' }, pollution: { status: 'valid', expiryDate: '2025-12-15' } },
+        currentTrip: { orderId: 'ORD-2025-1234', origin: 'Delhi', destination: 'Mumbai', eta: '2025-09-30T18:00:00Z', progress: 45 }
+      }
+    ]});
+  }
+}, 1000);
+
+// Force initialize routes if empty
+setTimeout(() => {
+  const state = store.getState();
+  if (!state.routes?.routes || state.routes.routes.length === 0) {
+    console.log('Routes empty - initializing sample data');
+    
+    store.dispatch({ 
+      type: 'routes/createRoute',
+      payload: {
+        id: 'RT001',
+        routeName: 'Mumbai-Delhi Express',
+        origin: { name: 'Mumbai Warehouse', address: 'Andheri East, Mumbai', lat: 19.1136, lng: 72.8697 },
+        destination: { name: 'Delhi Distribution Center', address: 'Dwarka, New Delhi', lat: 28.5921, lng: 77.0460 },
+        stops: [
+          { name: 'Surat Hub', address: 'Ring Road, Surat', lat: 21.1702, lng: 72.8311 }
+        ],
+        driver: { id: 'DR001', name: 'Rajesh Kumar', phone: '+91 98765 43210' },
+        vehicle: { id: 'VH001', number: 'MH-01-AB-1234', type: 'Heavy Truck' },
+        distance: '1,450 km',
+        estimatedTime: '22 hours',
+        status: 'active',
+        priority: 'high',
+        cost: '₹45,000',
+        fuelCost: '₹22,000',
+        orders: ['ORD001', 'ORD002'],
+        createdAt: new Date().toISOString(),
+        notes: 'High priority delivery'
+      }
+    });
+
+    store.dispatch({ 
+      type: 'routes/createRoute',
+      payload: {
+        id: 'RT002',
+        routeName: 'Chennai-Bangalore Quick',
+        origin: { name: 'Chennai Port', address: 'Chennai Harbor', lat: 13.0827, lng: 80.2707 },
+        destination: { name: 'Bangalore Tech Hub', address: 'Whitefield, Bangalore', lat: 12.9698, lng: 77.7500 },
+        stops: [],
+        driver: { id: 'DR002', name: 'Suresh Patel', phone: '+91 98888 12345' },
+        vehicle: { id: 'VH002', number: 'TN-09-CD-5678', type: 'Medium Truck' },
+        distance: '346 km',
+        estimatedTime: '6 hours',
+        status: 'completed',
+        priority: 'medium',
+        cost: '₹12,000',
+        fuelCost: '₹5,500',
+        orders: ['ORD004'],
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        completedAt: new Date().toISOString(),
+        notes: 'Electronics delivery'
+      }
+    });
+
+    store.dispatch({ 
+      type: 'routes/createRoute',
+      payload: {
+        id: 'RT003',
+        routeName: 'Pune-Hyderabad Regular',
+        origin: { name: 'Pune Industrial Area', address: 'Pimpri-Chinchwad', lat: 18.6298, lng: 73.7997 },
+        destination: { name: 'Hyderabad Logistics Park', address: 'Shamshabad', lat: 17.2403, lng: 78.4294 },
+        stops: [],
+        driver: { id: 'DR003', name: 'Amit Singh', phone: '+91 97777 98765' },
+        vehicle: { id: 'VH003', number: 'MH-12-EF-9012', type: 'Heavy Truck' },
+        distance: '560 km',
+        estimatedTime: '9 hours',
+        status: 'planning',
+        priority: 'low',
+        cost: '₹18,500',
+        fuelCost: '₹8,800',
+        orders: ['ORD006'],
+        createdAt: new Date().toISOString(),
+        notes: 'Regular weekly shipment'
+      }
+    });
+  }
+}, 2000);
+
+// Force initialize fleet if empty
+setTimeout(() => {
+  const state = store.getState();
+  if (!state.fleet?.vehicles || state.fleet.vehicles.length === 0) {
+    console.log('Fleet empty - forcing initialization');
+    store.dispatch({ type: 'fleet/setVehicles', payload: [
+      // Copy first vehicle as test
+      {
+        id: 'FL-001',
+        registrationNumber: 'DL 1C AB 1234',
+        type: 'Truck',
+        model: 'Tata LPT 1613',
+        capacity: '16 Tons',
+        status: 'active',
+        driver: { id: 'D-001', name: 'Rajesh Kumar', phone: '+91 98765 43210', license: 'DL1520200012345' },
+        currentLocation: { lat: 28.7041, lng: 77.1025, address: 'Connaught Place, New Delhi' },
+        fuelLevel: 75,
+        lastMaintenance: '2025-09-15',
+        nextMaintenance: '2025-10-15',
+        mileage: 145280,
+        insurance: { provider: 'ICICI Lombard', policyNumber: 'POL2025001234', expiryDate: '2026-03-15' },
+        documents: { rc: { status: 'valid', expiryDate: '2030-05-20' }, permit: { status: 'valid', expiryDate: '2026-01-10' }, fitness: { status: 'valid', expiryDate: '2026-09-30' }, pollution: { status: 'valid', expiryDate: '2025-12-15' } },
+        currentTrip: { orderId: 'ORD-2025-1234', origin: 'Delhi', destination: 'Mumbai', eta: '2025-09-30T18:00:00Z', progress: 45 }
+      }
+    ]});
+  }
+}, 1000);
+
+// TEMPORARY: Purge old state to fix fleet reducer issue
+// Remove this after first successful load
+//persistor.purge().then(() => {
+  //console.log('Persisted state purged - fleet reducer initialized');
+//});
+
+
+// Force initialize routes if empty
+setTimeout(() => {
+  const state = store.getState();
+  if (!state.routes?.routes || state.routes.routes.length === 0) {
+    console.log('Routes empty - initializing sample data');
+    
+    store.dispatch({ 
+      type: 'routes/createRoute',
+      payload: {
+        id: 'RT001',
+        routeName: 'Mumbai-Delhi Express',
+        origin: { name: 'Mumbai Warehouse', address: 'Andheri East, Mumbai', lat: 19.1136, lng: 72.8697 },
+        destination: { name: 'Delhi Distribution Center', address: 'Dwarka, New Delhi', lat: 28.5921, lng: 77.0460 },
+        stops: [{ name: 'Surat Hub', address: 'Ring Road, Surat', lat: 21.1702, lng: 72.8311 }],
+        driver: { id: 'DR001', name: 'Rajesh Kumar', phone: '+91 98765 43210' },
+        vehicle: { id: 'VH001', number: 'MH-01-AB-1234', type: 'Heavy Truck' },
+        distance: '1,450 km',
+        estimatedTime: '22 hours',
+        status: 'active',
+        priority: 'high',
+        cost: '?45,000',
+        fuelCost: '?22,000',
+        orders: ['ORD001', 'ORD002'],
+        createdAt: new Date().toISOString(),
+        notes: 'High priority delivery'
+      }
+    });
+
+    store.dispatch({ 
+      type: 'routes/createRoute',
+      payload: {
+        id: 'RT002',
+        routeName: 'Chennai-Bangalore Quick',
+        origin: { name: 'Chennai Port', address: 'Chennai Harbor', lat: 13.0827, lng: 80.2707 },
+        destination: { name: 'Bangalore Tech Hub', address: 'Whitefield, Bangalore', lat: 12.9698, lng: 77.7500 },
+        stops: [],
+        driver: { id: 'DR002', name: 'Suresh Patel', phone: '+91 98888 12345' },
+        vehicle: { id: 'VH002', number: 'TN-09-CD-5678', type: 'Medium Truck' },
+        distance: '346 km',
+        estimatedTime: '6 hours',
+        status: 'completed',
+        priority: 'medium',
+        cost: '?12,000',
+        fuelCost: '?5,500',
+        orders: ['ORD004'],
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        completedAt: new Date().toISOString(),
+        notes: 'Electronics delivery'
+      }
+    });
+
+    store.dispatch({ 
+      type: 'routes/createRoute',
+      payload: {
+        id: 'RT003',
+        routeName: 'Pune-Hyderabad Regular',
+        origin: { name: 'Pune Industrial Area', address: 'Pimpri-Chinchwad', lat: 18.6298, lng: 73.7997 },
+        destination: { name: 'Hyderabad Logistics Park', address: 'Shamshabad', lat: 17.2403, lng: 78.4294 },
+        stops: [],
+        driver: { id: 'DR003', name: 'Amit Singh', phone: '+91 97777 98765' },
+        vehicle: { id: 'VH003', number: 'MH-12-EF-9012', type: 'Heavy Truck' },
+        distance: '560 km',
+        estimatedTime: '9 hours',
+        status: 'planning',
+        priority: 'low',
+        cost: '?18,500',
+        fuelCost: '?8,800',
+        orders: ['ORD006'],
+        createdAt: new Date().toISOString(),
+        notes: 'Regular weekly shipment'
+      }
+    });
+  }
+}, 2000);
+
+export const RootState = store.getState;
+export const AppDispatch = store.dispatch;
+
+
+
+
+
+
+

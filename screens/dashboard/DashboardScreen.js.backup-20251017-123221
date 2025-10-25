@@ -1,0 +1,939 @@
+// screens/dashboard/DashboardScreen.js - Android-Optimized React Native Dashboard
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  StatusBar,
+  TouchableOpacity,
+  TouchableNativeFeedback,
+  ScrollView,
+  RefreshControl,
+  Alert,
+  Dimensions,
+  Platform,
+  BackHandler
+} from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+
+const { width, height } = Dimensions.get('window');
+const isAndroid = Platform.OS === 'android';
+
+const DashboardScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const { userData } = useSelector((state) => state.user);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Handle Android back button - FIXED VERSION
+useFocusEffect(
+  useCallback(() => {
+    const onBackPress = () => {
+      Alert.alert(
+        'Exit App',
+        'Are you sure you want to exit?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Exit', style: 'destructive', onPress: () => BackHandler.exitApp() }
+        ]
+      );
+      return true;
+    };
+
+    if (isAndroid) {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove(); // FIXED: Use backHandler.remove() instead of removeEventListener
+    }
+  }, [])
+);
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Real-time dashboard data
+  const [dashboardData] = useState({
+    kpis: {
+      activeVehicles: { value: 45, total: 50, trend: '+2', status: 'good' },
+      pendingOrders: { value: 12, trend: '-3', status: 'warning' },
+      activeRoutes: { value: 15, total: 20, trend: '+3', status: 'good' },
+      onTimeRate: { value: 94.2, trend: '+1.2%', status: 'excellent' }
+    },
+    alerts: [
+      { id: 1, type: 'critical', message: 'Vehicle FL-003 requires immediate maintenance', time: '5 min ago' },
+      { id: 2, type: 'warning', message: 'Route 15 has heavy traffic delays', time: '12 min ago' },
+      { id: 3, type: 'info', message: 'New order from Metro Corp assigned', time: '18 min ago' }
+    ],
+    teamStatus: { online: 8, onRoute: 12, available: 5, unreadMessages: 5 }
+  });
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+      console.log('Dashboard refreshed');
+    }, 1500);
+  }, []);
+
+  const handleModuleNavigation = useCallback((moduleName, screenName) => {
+  console.log(`Navigating to ${moduleName}: ${screenName}`);
+
+  // Working modules - navigate directly
+  if (screenName === 'GroupChat') {
+    navigation.navigate('GroupChat');
+  } else if (screenName === 'Attendance') {
+    navigation.navigate('Attendance');
+  } else if (screenName === 'FleetOverview') {
+    navigation.navigate('FleetOverview');
+  } else if (screenName === 'AddVehicle') {
+    navigation.navigate('AddVehicle');
+  } else if (screenName === 'OrderManagement') {
+    navigation.navigate('OrderManagement');
+  } else if (screenName === 'RoutePlanning' || screenName === 'Routes') {
+    navigation.navigate('Routes');
+  } else if (screenName === 'Reports' || screenName === 'ReportsExport') {
+  navigation.navigate('Reports');
+  } else if (screenName === 'Shipments' || screenName === 'ShipmentTracking') {
+    navigation.navigate('Shipments');
+} else if (screenName === 'Customers' || screenName === 'CustomerManagement') {
+  navigation.navigate('Customers');
+} else if (screenName === 'Settings' || screenName === 'Profile') {
+  navigation.navigate('Settings');
+  
+  } else if (screenName === 'Billing' || screenName === 'Invoices') {
+  navigation.navigate('Invoices');
+  } else if (screenName === 'Analytics') {
+    navigation.navigate('Analytics');
+} else if (screenName === 'Inventory' || screenName === 'InventoryManagement') {navigation.navigate('Inventory');
+  } else if (screenName === 'Metrics' || screenName === 'BusinessMetrics') {
+    navigation.navigate('Metrics');
+  
+   } else {
+
+    // Modules not yet built - show priority dialog
+    Alert.alert(
+      moduleName,
+      `${screenName} module will be built next. Would you like to prioritize this module?`,
+      [
+        { text: 'Later', style: 'cancel' },
+        { 
+          text: 'Build This Next', 
+          onPress: () => console.log(`Priority: ${moduleName}`) 
+        }
+      ]
+    );
+  }
+}, [navigation]);
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  // Android-optimized TouchableComponent
+  const TouchableComponent = isAndroid ? TouchableNativeFeedback : TouchableOpacity;
+
+  const renderTouchableWrapper = (onPress, children, style = {}) => {
+    if (isAndroid) {
+      return (
+        <TouchableNativeFeedback
+          onPress={onPress}
+          background={TouchableNativeFeedback.Ripple('#e3f2fd', false)}
+          useForeground={true}
+        >
+          <View style={style}>
+            {children}
+          </View>
+        </TouchableNativeFeedback>
+      );
+    }
+    return (
+      <TouchableOpacity onPress={onPress} style={style} activeOpacity={0.7}>
+        {children}
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#1976d2" 
+        translucent={false}
+      />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Control Center</Text>
+            <Text style={styles.headerSubtitle}>
+              {userData?.company || 'GroupA Logistics'}
+            </Text>
+          </View>
+          <View style={styles.headerRight}>
+            {/* Notifications */}
+            {renderTouchableWrapper(
+              () => navigation.navigate('Notifications'),
+              <View style={styles.headerButton}>
+                <Ionicons name="notifications" size={20} color="#fff" />
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationText}>3</Text>
+                </View>
+              </View>,
+              styles.headerButtonWrapper
+            )}
+
+            {/* Team Chat */}
+            {renderTouchableWrapper(
+              () => navigation.navigate('GroupChat'),
+              <View style={styles.headerButton}>
+                <Ionicons name="chatbubbles" size={20} color="#fff" />
+                {dashboardData.teamStatus.unreadMessages > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationText}>
+                      {dashboardData.teamStatus.unreadMessages}
+                    </Text>
+                  </View>
+                )}
+              </View>,
+              styles.headerButtonWrapper
+            )}
+
+            {/* Profile */}
+            {renderTouchableWrapper(
+              () => navigation.navigate('Settings'),
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {userData?.name?.charAt(0) || 'M'}
+                </Text>
+              </View>,
+              styles.profileWrapper
+            )}
+          </View>
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#1976d2']}
+            progressBackgroundColor="#fff"
+          />
+        }
+      >
+        {/* Welcome Section */}
+        <View style={[styles.welcomeSection, { backgroundColor: '#667eea' }]}>
+          <Text style={styles.welcomeTitle}>
+            {getGreeting()}, {userData?.name?.split(' ')[0] || 'Manager'}
+          </Text>
+          <Text style={styles.welcomeSubtitle}>
+            Your fleet is operating at 90% efficiency today
+          </Text>
+        </View>
+
+        {/* Critical Alerts */}
+        {dashboardData.alerts.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Active Alerts</Text>
+            <View style={styles.alertsContainer}>
+              {dashboardData.alerts.map((alert, index) => (
+                <View key={alert.id} style={styles.alertWrapper}>
+                 {renderTouchableWrapper(
+                   () => {
+                    if (alert.type === 'critical') {
+                     navigation.navigate('Fleet');
+                     } else if (alert.type === 'warning') {
+                     navigation.navigate('Routes');
+                     } else {
+                     navigation.navigate('OrderManagement');
+                     }
+                     },
+                     <View style={styles.alertItem}>
+                      <View style={[
+                        styles.alertIcon, 
+                        { backgroundColor: getAlertColor(alert.type) + '20' }
+                      ]}>
+                        <Ionicons 
+                          name={getAlertIcon(alert.type)} 
+                          size={16} 
+                          color={getAlertColor(alert.type)} 
+                        />
+                      </View>
+                      <View style={styles.alertContent}>
+                        <Text style={styles.alertMessage}>{alert.message}</Text>
+                        <Text style={styles.alertTime}>{alert.time}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="#bdbdbd" />
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* KPI Cards */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Fleet Performance</Text>
+          <View style={styles.kpiGrid}>
+            <KPICard
+              title="Active Vehicles"
+              value={`${dashboardData.kpis.activeVehicles.value}/${dashboardData.kpis.activeVehicles.total}`}
+              trend={dashboardData.kpis.activeVehicles.trend}
+              icon="car"
+              color="#1976d2"
+              onPress={() => handleModuleNavigation('Fleet Management', 'FleetOverview')}
+            />
+            <KPICard
+              title="Pending Orders"
+              value={dashboardData.kpis.pendingOrders.value.toString()}
+              trend={dashboardData.kpis.pendingOrders.trend}
+              icon="clipboard"
+              color="#f57c00"
+              onPress={() => navigation.navigate('PendingOrders')}
+            />
+           <KPICard
+             title="Active Routes"
+             value={`${dashboardData.kpis.activeRoutes.value}/  
+             ${dashboardData.kpis.activeRoutes.total}`}
+             trend={dashboardData.kpis.activeRoutes.trend}
+             icon="map"
+             color="#388e3c"
+             onPress={() => navigation.navigate('Routes')}
+            />
+            <KPICard
+              title="On-Time Rate"
+              value={`${dashboardData.kpis.onTimeRate.value}%`}
+              trend={dashboardData.kpis.onTimeRate.trend}
+              icon="time"
+              color="#7b1fa2"
+              onPress={() => navigation.navigate('DeliveryMetrics')}
+            />
+          </View>
+        </View>
+
+        {/* Modules Grid */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Operations Modules</Text>
+          <View style={styles.modulesGrid}>
+            <ModuleCard
+              title="Team Communication"
+              description="5 unread messages"
+              icon="chatbubbles"
+              color="#1976d2"
+              onPress={() => navigation.navigate('GroupChat')}
+              status="active"
+            />
+            <ModuleCard
+              title="Order Management"
+              description="12 pending orders"
+              icon="clipboard"
+              color="#f57c00"
+              onPress={() => handleModuleNavigation('Orders', 'OrderManagement')}
+              status="active"
+            />
+            <ModuleCard
+              title="Fleet Tracking"
+              description="45 vehicles active"
+              icon="car-sport"
+              color="#388e3c"
+              onPress={() => handleModuleNavigation('Fleet', 'FleetOverview')}
+              status="active"
+            />
+               <ModuleCard
+                title="Settings"
+                description="App preferences"
+                icon="settings-outline"
+                color="#6B7280"
+                onPress={() => handleModuleNavigation('Settings', 'Profile')}
+                status="active"
+              />
+            <ModuleCard
+              title="Attendance System"
+              description="8 checked in"
+              icon="people"
+              color="#d32f2f"
+              onPress={() => handleModuleNavigation('Attendance', 'Attendance')}
+              status="active"
+            />
+            />
+            <ModuleCard
+             title="Route Planning"
+             description="15 routes active"
+             icon="map"
+             color="#00796b"
+             onPress={() => handleModuleNavigation('Routes', 'RoutePlanning')}
+             status="active"
+             />
+            <ModuleCard
+             title="Analytics"
+             description="Weekly reports"
+             icon="analytics"
+             color="#7b1fa2"
+             onPress={() => handleModuleNavigation('Analytics', 'Reports')}
+            status="active"
+            />
+             
+               <ModuleCard
+                title="Billing & Invoicing"
+                description="Manage invoices"
+                icon="receipt-outline"
+                color="#F59E0B"
+                onPress={() => handleModuleNavigation('Billing', 'Invoices')}
+                status="active"
+              />
+               <ModuleCard
+                title="Inventory Management"
+                description="Track stock levels"
+                icon="file-tray-outline"
+                color="#10B981"
+                onPress={() => handleModuleNavigation('Inventory', 'InventoryManagement')}
+                status="active"
+                />
+              <ModuleCard
+                title="Customer Management"
+                description="Manage customers"
+                icon="people-outline"
+                color="#8B5CF6"
+                onPress={() => handleModuleNavigation('Customers', 'CustomerManagement')}
+                status="active"
+              />
+              />
+              <ModuleCard
+                title="Reports & Export"
+                description="Generate reports"
+                icon="document-text-outline"
+                color="#06B6D4"
+                onPress={() => handleModuleNavigation('Reports', 'ReportsExport')}
+                status="active"
+              />
+              <ModuleCard
+                title="Shipment Tracking"
+                description="Track deliveries"
+                icon="cube-outline"
+                color="#10B981"
+                onPress={() => handleModuleNavigation('Shipments', 'ShipmentTracking')}
+                status="active"
+              />
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            <QuickActionButton
+              icon="add-circle"
+              title="New Order"
+              color="#388e3c"
+              onPress={() => navigation.navigate('CreateOrder')}
+            />
+            <QuickActionButton
+              icon="car"
+              title="Add Vehicle"
+              color="#1976d2"
+              onPress={() => handleModuleNavigation('Fleet', 'AddVehicle')}
+            />
+            <QuickActionButton
+              icon="person-add"
+              title="Add Driver"
+              color="#f57c00"
+              onPress={() => navigation.navigate('AddDriver')}
+            />
+            <QuickActionButton
+              icon="location"
+              title="Track Package"
+              color="#7b1fa2"
+              onPress={() => navigation.navigate('TrackPackage')}
+            />
+          </View>
+        </View>
+
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </View>
+  );
+};
+
+// Reusable Components with Android optimization
+const KPICard = ({ title, value, trend, icon, color, onPress }) => {
+  const TouchableComponent = isAndroid ? TouchableNativeFeedback : TouchableOpacity;
+  
+  const content = (
+    <View style={styles.kpiCard}>
+      <View style={styles.kpiHeader}>
+        <View style={[styles.kpiIcon, { backgroundColor: color + '15' }]}>
+          <Ionicons name={icon} size={20} color={color} />
+        </View>
+        <Text style={[
+          styles.kpiTrend, 
+          { color: trend.startsWith('+') ? '#388e3c' : '#d32f2f' }
+        ]}>
+          {trend}
+        </Text>
+      </View>
+      <Text style={styles.kpiValue}>{value}</Text>
+      <Text style={styles.kpiTitle}>{title}</Text>
+    </View>
+  );
+
+  if (isAndroid) {
+    return (
+      <TouchableNativeFeedback
+        onPress={onPress}
+        background={TouchableNativeFeedback.Ripple('#e3f2fd', false)}
+      >
+        {content}
+      </TouchableNativeFeedback>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+const ModuleCard = ({ title, description, icon, color, onPress, status }) => {
+  const content = (
+    <View style={styles.moduleCard}>
+      <View style={styles.moduleHeader}>
+        <View style={[styles.moduleIcon, { backgroundColor: color + '15' }]}>
+          <Ionicons name={icon} size={24} color={color} />
+        </View>
+        {status === 'active' && (
+          <View style={styles.activeStatus}>
+            <Text style={styles.activeStatusText}>ACTIVE</Text>
+          </View>
+        )}
+        {status === 'building' && (
+          <View style={styles.buildingStatus}>
+            <Text style={styles.buildingStatusText}>BUILD</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.moduleTitle}>{title}</Text>
+      <Text style={styles.moduleDescription}>{description}</Text>
+    </View>
+  );
+
+  if (isAndroid) {
+    return (
+      <TouchableNativeFeedback
+        onPress={onPress}
+        background={TouchableNativeFeedback.Ripple('#e3f2fd', false)}
+      >
+        {content}
+      </TouchableNativeFeedback>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+const QuickActionButton = ({ icon, title, color, onPress }) => {
+  const content = (
+    <View style={styles.quickActionButton}>
+      <View style={[styles.quickActionIcon, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={styles.quickActionTitle}>{title}</Text>
+    </View>
+  );
+
+  if (isAndroid) {
+    return (
+      <TouchableNativeFeedback
+        onPress={onPress}
+        background={TouchableNativeFeedback.Ripple('#e3f2fd', true)}
+      >
+        {content}
+      </TouchableNativeFeedback>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+// Helper functions
+const getAlertColor = (type) => {
+  switch (type) {
+    case 'critical': return '#d32f2f';
+    case 'warning': return '#f57c00';
+    case 'info': return '#1976d2';
+    default: return '#757575';
+  }
+};
+
+const getAlertIcon = (type) => {
+  switch (type) {
+    case 'critical': return 'alert-circle';
+    case 'warning': return 'warning';
+    case 'info': return 'information-circle';
+    default: return 'notifications';
+  }
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa'
+  },
+  header: {
+    backgroundColor: '#1976d2',
+    paddingTop: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    elevation: 8,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  headerLeft: {
+    flex: 1
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500'
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  headerButtonWrapper: {
+    marginHorizontal: 4
+  },
+  headerButton: {
+    position: 'relative',
+    padding: 12,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)'
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#ff5252',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#1976d2'
+  },
+  notificationText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  profileWrapper: {
+    marginLeft: 8
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)'
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700'
+  },
+  content: {
+    flex: 1
+  },
+  welcomeSection: {
+    marginHorizontal: 16,
+    marginTop: -40,
+    padding: 24,
+    borderRadius: 16,
+    elevation: 4,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)'
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 6
+  },
+  welcomeSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '500'
+  },
+  section: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 8
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a2e',
+    marginBottom: 16,
+    letterSpacing: 0.3
+  },
+  alertsContainer: {
+    backgroundColor: 'transparent'
+  },
+  alertWrapper: {
+    marginBottom: 12
+  },
+  alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6
+  },
+  alertIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12
+  },
+  alertContent: {
+    flex: 1
+  },
+  alertMessage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a2e',
+    marginBottom: 4,
+    lineHeight: 20
+  },
+  alertTime: {
+    fontSize: 12,
+    color: '#8b8b9f',
+    fontWeight: '500'
+  },
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between'
+  },
+  kpiCard: {
+    width: (width - 48) / 2,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)'
+  },
+  kpiHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  kpiIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2
+  },
+  kpiTrend: {
+    fontSize: 13,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#e8f5e9'
+  },
+  kpiValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1a1a2e',
+    marginBottom: 6,
+    letterSpacing: -0.5
+  },
+  kpiTitle: {
+    fontSize: 13,
+    color: '#8b8b9f',
+    fontWeight: '600',
+    letterSpacing: 0.3
+  },
+  modulesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between'
+  },
+  moduleCard: {
+    width: (width - 48) / 2,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)'
+  },
+  moduleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14
+  },
+  moduleIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3
+  },
+  activeStatus: {
+    backgroundColor: '#4caf50',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    elevation: 2
+  },
+  activeStatusText: {
+    color: 'white',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5
+  },
+  buildingStatus: {
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    elevation: 2
+  },
+  buildingStatusText: {
+    color: 'white',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5
+  },
+  moduleTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a1a2e',
+    marginBottom: 6,
+    letterSpacing: 0.2
+  },
+  moduleDescription: {
+    fontSize: 12,
+    color: '#8b8b9f',
+    fontWeight: '500'
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap'
+  },
+  quickActionButton: {
+    width: (width - 64) / 4,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)'
+  },
+  quickActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    elevation: 2
+  },
+  quickActionTitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#1a1a2e',
+    textAlign: 'center',
+    letterSpacing: 0.2
+  },
+  bottomSpacing: {
+    height: 32
+  }
+});
+
+export default DashboardScreen;
+
+

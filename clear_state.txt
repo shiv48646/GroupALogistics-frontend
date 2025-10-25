@@ -1,0 +1,16 @@
+// Reset Redux Persist State
+// Add this temporarily to App.js or run in app
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const clearPersistedState = async () => {
+  try {
+    await AsyncStorage.removeItem('persist:groupalogistics-v1');
+    console.log('Persisted state cleared');
+  } catch (error) {
+    console.error('Error clearing state:', error);
+  }
+};
+
+// Call this once
+clearPersistedState();

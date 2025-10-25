@@ -1,0 +1,284 @@
+// screens/inventory/InventoryScreen.js
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  ScrollView
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+const InventoryScreen = ({ navigation }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterLocation, setFilterLocation] = useState('all');
+  
+  // Sample inventory items with local state
+  const [items] = useState([
+    {
+      id: 'ITEM-001',
+      sku: 'SKU-12345',
+      name: 'Cardboard Boxes - Large',
+      category: 'Packaging',
+      quantity: 450,
+      unit: 'units',
+      location: 'Warehouse A',
+      reorderLevel: 100,
+      status: 'in-stock'
+    },
+    {
+      id: 'ITEM-002',
+      sku: 'SKU-12346',
+      name: 'Packing Tape Rolls',
+      category: 'Packaging',
+      quantity: 85,
+      unit: 'rolls',
+      location: 'Warehouse A',
+      reorderLevel: 100,
+      status: 'low-stock'
+    },
+    {
+      id: 'ITEM-003',
+      sku: 'SKU-12347',
+      name: 'Bubble Wrap',
+      category: 'Packaging',
+      quantity: 220,
+      unit: 'meters',
+      location: 'Warehouse B',
+      reorderLevel: 50,
+      status: 'in-stock'
+    },
+    {
+      id: 'ITEM-004',
+      sku: 'SKU-12348',
+      name: 'Pallet Jacks',
+      category: 'Equipment',
+      quantity: 12,
+      unit: 'units',
+      location: 'Warehouse A',
+      reorderLevel: 5,
+      status: 'in-stock'
+    },
+    {
+      id: 'ITEM-005',
+      sku: 'SKU-12349',
+      name: 'Strapping Material',
+      category: 'Packaging',
+      quantity: 15,
+      unit: 'rolls',
+      location: 'Warehouse C',
+      reorderLevel: 25,
+      status: 'low-stock'
+    },
+    {
+      id: 'ITEM-006',
+      sku: 'SKU-12350',
+      name: 'Shipping Labels',
+      category: 'Supplies',
+      quantity: 0,
+      unit: 'sheets',
+      location: 'Warehouse A',
+      reorderLevel: 500,
+      status: 'out-of-stock'
+    }
+  ]);
+
+  const locations = ['Warehouse A', 'Warehouse B', 'Warehouse C'];
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'in-stock': return '#10B981';
+      case 'low-stock': return '#F59E0B';
+      case 'out-of-stock': return '#EF4444';
+      default: return '#6B7280';
+    }
+  };
+
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         item.sku.toLowerCase().includes(searchQuery.toLowerCase());
+    if (filterLocation === 'all') return matchesSearch;
+    return matchesSearch && item.location === filterLocation;
+  });
+
+  const stats = {
+    total: items.length,
+    inStock: items.filter(i => i.status === 'in-stock').length,
+    lowStock: items.filter(i => i.status === 'low-stock').length,
+    outOfStock: items.filter(i => i.status === 'out-of-stock').length
+  };
+
+  const renderItemCard = ({ item }) => (
+    <TouchableOpacity
+      style={styles.itemCard}
+      onPress={() => navigation.navigate('ItemDetails', { item })}
+    >
+      <View style={styles.cardHeader}>
+        <View style={styles.cardHeaderLeft}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemSku}>SKU: {item.sku}</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+            {item.status.toUpperCase().replace('-', ' ')}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={styles.infoRow}>
+          <View style={styles.infoItem}>
+            <Ionicons name="pricetags-outline" size={14} color="#6B7280" />
+            <Text style={styles.infoText}>{item.category}</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Ionicons name="location-outline" size={14} color="#6B7280" />
+            <Text style={styles.infoText}>{item.location}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.cardFooter}>
+        <View style={styles.quantitySection}>
+          <Text style={styles.quantityLabel}>Current Stock</Text>
+          <Text style={[styles.quantityValue, { color: getStatusColor(item.status) }]}>
+            {item.quantity} {item.unit}
+          </Text>
+        </View>
+        {item.quantity <= item.reorderLevel && (
+          <View style={styles.alertSection}>
+            <Ionicons name="alert-circle" size={16} color="#F59E0B" />
+            <Text style={styles.alertText}>Reorder at {item.reorderLevel}</Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Inventory Management</Text>
+          <Text style={styles.headerSubtitle}>{filteredItems.length} items</Text>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('AddItem')} style={styles.addButton}>
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.total}</Text>
+          <Text style={styles.statLabel}>Total Items</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: '#10B981' }]}>{stats.inStock}</Text>
+          <Text style={styles.statLabel}>In Stock</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: '#F59E0B' }]}>{stats.lowStock}</Text>
+          <Text style={styles.statLabel}>Low Stock</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: '#EF4444' }]}>{stats.outOfStock}</Text>
+          <Text style={styles.statLabel}>Out of Stock</Text>
+        </View>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search items..."
+          placeholderTextColor="#9CA3AF"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <TouchableOpacity
+            style={[styles.filterButton, filterLocation === 'all' && styles.filterButtonActive]}
+            onPress={() => setFilterLocation('all')}
+          >
+            <Text style={[styles.filterButtonText, filterLocation === 'all' && styles.filterButtonTextActive]}>
+              All Locations
+            </Text>
+          </TouchableOpacity>
+          {locations.map(location => (
+            <TouchableOpacity
+              key={location}
+              style={[styles.filterButton, filterLocation === location && styles.filterButtonActive]}
+              onPress={() => setFilterLocation(location)}
+            >
+              <Text style={[styles.filterButtonText, filterLocation === location && styles.filterButtonTextActive]}>
+                {location}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <FlatList
+        data={filteredItems}
+        renderItem={renderItemCard}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons name="cube-outline" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyTitle}>No Items Found</Text>
+            <Text style={styles.emptyText}>Try adjusting your search or filters</Text>
+          </View>
+        }
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  header: { backgroundColor: '#fff', padding: 20, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#1F2937' },
+  headerSubtitle: { fontSize: 14, color: '#6B7280', marginTop: 4 },
+  addButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
+  statsContainer: { flexDirection: 'row', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  statCard: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: 20, fontWeight: 'bold', color: '#1F2937' },
+  statLabel: { fontSize: 11, color: '#6B7280', marginTop: 4 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, marginHorizontal: 16, marginTop: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 16, color: '#1F2937' },
+  filterContainer: { flexDirection: 'row', padding: 16, paddingTop: 12 },
+  filterButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#F3F4F6', marginRight: 8 },
+  filterButtonActive: { backgroundColor: '#3B82F6' },
+  filterButtonText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  filterButtonTextActive: { color: '#fff' },
+  listContent: { padding: 16 },
+  itemCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  cardHeaderLeft: { flex: 1 },
+  itemName: { fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
+  itemSku: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  statusText: { fontSize: 10, fontWeight: 'bold' },
+  cardBody: { marginBottom: 12 },
+  infoRow: { flexDirection: 'row', gap: 16 },
+  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  infoText: { fontSize: 12, color: '#6B7280' },
+  cardFooter: { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12 },
+  quantitySection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  quantityLabel: { fontSize: 13, color: '#6B7280' },
+  quantityValue: { fontSize: 18, fontWeight: 'bold' },
+  alertSection: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  alertText: { fontSize: 12, color: '#F59E0B' },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#6B7280', marginTop: 16 },
+  emptyText: { fontSize: 14, color: '#9CA3AF', marginTop: 8 }
+});
+
+export default InventoryScreen;

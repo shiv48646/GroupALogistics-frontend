@@ -1,0 +1,1105 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  Modal,
+  Image,
+  ActivityIndicator,
+  Animated,
+} from 'react-native';
+
+const ChatScreen = () => {
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState('');
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const flatListRef = useRef(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    loadConversations();
+    loadOnlineUsers();
+    startTypingAnimation();
+  }, []);
+
+  useEffect(() => {
+    if (activeConversation) {
+      loadMessages(activeConversation.id);
+    }
+  }, [activeConversation]);
+
+  const startTypingAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const loadConversations = async () => {
+    setIsLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      const mockConversations = [
+        {
+          id: '1',
+          name: 'Team Alpha',
+          type: 'group',
+          participants: [
+            { id: '1', name: 'John Smith', role: 'Driver' },
+            { id: '2', name: 'Sarah Johnson', role: 'Manager' },
+            { id: '3', name: 'Mike Davis', role: 'Supervisor' },
+            { id: 'me', name: 'You', role: 'Driver' }
+          ],
+          lastMessage: 'Thanks for the update on the delivery schedule',
+          lastMessageTime: '10:30 AM',
+          lastMessageDate: new Date(),
+          unreadCount: 2,
+          avatar: 'https://ui-avatars.com/api/?name=Team+Alpha&background=2196F3&color=fff',
+          isOnline: true,
+        },
+        {
+          id: '2',
+          name: 'Sarah Johnson',
+          type: 'direct',
+          participants: [
+            { id: '2', name: 'Sarah Johnson', role: 'Manager' },
+            { id: 'me', name: 'You', role: 'Driver' }
+          ],
+          lastMessage: 'Can you check the inventory levels for route 15?',
+          lastMessageTime: '9:45 AM',
+          lastMessageDate: new Date(Date.now() - 45 * 60000),
+          unreadCount: 0,
+          avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson&background=4CAF50&color=fff',
+          isOnline: true,
+        },
+        {
+          id: '3',
+          name: 'Customer Support',
+          type: 'group',
+          participants: [
+            { id: '4', name: 'Lisa Wang', role: 'Support' },
+            { id: '5', name: 'Tom Brown', role: 'Support' },
+            { id: '6', name: 'Emma Wilson', role: 'Lead Support' },
+            { id: 'me', name: 'You', role: 'Driver' }
+          ],
+          lastMessage: 'Issue resolved, customer is satisfied with the delivery',
+          lastMessageTime: 'Yesterday',
+          lastMessageDate: new Date(Date.now() - 24 * 60 * 60000),
+          unreadCount: 0,
+          avatar: 'https://ui-avatars.com/api/?name=Customer+Support&background=FF9800&color=fff',
+          isOnline: false,
+        },
+        {
+          id: '4',
+          name: 'Michael Chen',
+          type: 'direct',
+          participants: [
+            { id: '7', name: 'Michael Chen', role: 'Operations' },
+            { id: 'me', name: 'You', role: 'Driver' }
+          ],
+          lastMessage: 'Perfect, see you at the team meeting tomorrow',
+          lastMessageTime: 'Monday',
+          lastMessageDate: new Date(Date.now() - 2 * 24 * 60 * 60000),
+          unreadCount: 1,
+          avatar: 'https://ui-avatars.com/api/?name=Michael+Chen&background=9C27B0&color=fff',
+          isOnline: false,
+        },
+        {
+          id: '5',
+          name: 'Dispatch Center',
+          type: 'group',
+          participants: [
+            { id: '8', name: 'Robert Lee', role: 'Dispatcher' },
+            { id: '9', name: 'Jennifer Davis', role: 'Coordinator' },
+            { id: 'me', name: 'You', role: 'Driver' }
+          ],
+          lastMessage: 'New urgent delivery assigned to your route',
+          lastMessageTime: 'Tuesday',
+          lastMessageDate: new Date(Date.now() - 3 * 24 * 60 * 60000),
+          unreadCount: 3,
+          avatar: 'https://ui-avatars.com/api/?name=Dispatch+Center&background=F44336&color=fff',
+          isOnline: true,
+        },
+      ];
+      setConversations(mockConversations);
+      setIsLoading(false);
+    }, 1000);
+  };
+
+  const loadOnlineUsers = () => {
+    const mockOnlineUsers = [
+      { 
+        id: '1', 
+        name: 'Sarah Johnson', 
+        role: 'Manager', 
+        avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson&background=4CAF50&color=fff',
+        status: 'Available',
+        lastSeen: 'now'
+      },
+      { 
+        id: '2', 
+        name: 'John Smith', 
+        role: 'Senior Driver', 
+        avatar: 'https://ui-avatars.com/api/?name=John+Smith&background=2196F3&color=fff',
+        status: 'On Route',
+        lastSeen: '2 min ago'
+      },
+      { 
+        id: '3', 
+        name: 'Lisa Wang', 
+        role: 'Customer Support', 
+        avatar: 'https://ui-avatars.com/api/?name=Lisa+Wang&background=E91E63&color=fff',
+        status: 'In Call',
+        lastSeen: 'now'
+      },
+      { 
+        id: '4', 
+        name: 'Tom Brown', 
+        role: 'Supervisor', 
+        avatar: 'https://ui-avatars.com/api/?name=Tom+Brown&background=FF5722&color=fff',
+        status: 'Available',
+        lastSeen: 'now'
+      },
+      { 
+        id: '5', 
+        name: 'Emma Wilson', 
+        role: 'Lead Support', 
+        avatar: 'https://ui-avatars.com/api/?name=Emma+Wilson&background=9C27B0&color=fff',
+        status: 'Busy',
+        lastSeen: '5 min ago'
+      },
+      { 
+        id: '6', 
+        name: 'Robert Lee', 
+        role: 'Dispatcher', 
+        avatar: 'https://ui-avatars.com/api/?name=Robert+Lee&background=607D8B&color=fff',
+        status: 'Available',
+        lastSeen: 'now'
+      },
+    ];
+    setOnlineUsers(mockOnlineUsers);
+  };
+
+  const loadMessages = (conversationId) => {
+    setIsLoading(true);
+    
+    const mockMessages = {
+      '1': [
+        {
+          id: '1',
+          text: 'Good morning team! How are the morning deliveries progressing?',
+          sender: { id: '2', name: 'Sarah Johnson', avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson&background=4CAF50&color=fff' },
+          timestamp: '9:00 AM',
+          date: new Date(Date.now() - 90 * 60000),
+          isOwn: false,
+          messageType: 'text',
+        },
+        {
+          id: '2',
+          text: 'All routes are running on schedule. Just finished the downtown area, heading to the suburbs now.',
+          sender: { id: 'me', name: 'You', avatar: 'https://ui-avatars.com/api/?name=You&background=2196F3&color=fff' },
+          timestamp: '9:15 AM',
+          date: new Date(Date.now() - 75 * 60000),
+          isOwn: true,
+          messageType: 'text',
+        },
+        {
+          id: '3',
+          text: 'Excellent work! The customer feedback has been outstanding this week.',
+          sender: { id: '1', name: 'John Smith', avatar: 'https://ui-avatars.com/api/?name=John+Smith&background=FF9800&color=fff' },
+          timestamp: '9:30 AM',
+          date: new Date(Date.now() - 60 * 60000),
+          isOwn: false,
+          messageType: 'text',
+        },
+        {
+          id: '4',
+          text: 'Thanks for the update on the delivery schedule. Keep up the great work everyone!',
+          sender: { id: '3', name: 'Mike Davis', avatar: 'https://ui-avatars.com/api/?name=Mike+Davis&background=9C27B0&color=fff' },
+          timestamp: '10:30 AM',
+          date: new Date(Date.now() - 30 * 60000),
+          isOwn: false,
+          messageType: 'text',
+        },
+      ],
+      '2': [
+        {
+          id: '5',
+          text: 'Hi! How are things going with your route today?',
+          sender: { id: '2', name: 'Sarah Johnson', avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson&background=4CAF50&color=fff' },
+          timestamp: '8:30 AM',
+          date: new Date(Date.now() - 120 * 60000),
+          isOwn: false,
+          messageType: 'text',
+        },
+        {
+          id: '6',
+          text: 'Going really well! Just started and already completed 3 deliveries.',
+          sender: { id: 'me', name: 'You', avatar: 'https://ui-avatars.com/api/?name=You&background=2196F3&color=fff' },
+          timestamp: '8:45 AM',
+          date: new Date(Date.now() - 105 * 60000),
+          isOwn: true,
+          messageType: 'text',
+        },
+        {
+          id: '7',
+          text: 'Can you check the inventory levels for route 15?',
+          sender: { id: '2', name: 'Sarah Johnson', avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson&background=4CAF50&color=fff' },
+          timestamp: '9:45 AM',
+          date: new Date(Date.now() - 45 * 60000),
+          isOwn: false,
+          messageType: 'text',
+        },
+      ],
+    };
+    
+    setTimeout(() => {
+      setMessages(mockMessages[conversationId] || []);
+      setIsLoading(false);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }, 800);
+  };
+
+  const sendMessage = () => {
+    if (!messageText.trim() || !activeConversation) return;
+
+    const newMessage = {
+      id: Date.now().toString(),
+      text: messageText.trim(),
+      sender: { id: 'me', name: 'You', avatar: 'https://ui-avatars.com/api/?name=You&background=2196F3&color=fff' },
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: new Date(),
+      isOwn: true,
+      messageType: 'text',
+    };
+
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+    
+    // Update conversation's last message
+    setConversations(prevConversations =>
+      prevConversations.map(conv =>
+        conv.id === activeConversation.id
+          ? { 
+              ...conv, 
+              lastMessage: messageText.trim(), 
+              lastMessageTime: 'now',
+              lastMessageDate: new Date()
+            }
+          : conv
+      )
+    );
+
+    setMessageText('');
+    
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    // Simulate typing indicator and reply
+    if (Math.random() > 0.6) {
+      setTypingUsers([activeConversation.name]);
+      
+      setTimeout(() => {
+        setTypingUsers([]);
+        
+        const replies = [
+          'Got it, thanks for the update!',
+          'Will check on that right away.',
+          'Sounds good, keep me posted.',
+          'Thanks for letting me know.',
+          'Roger that, proceeding as planned.',
+          'Perfect, that works for me.',
+          'Understood, I\'ll handle it.',
+          'Great job on that delivery!',
+        ];
+        
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        const replyMessage = {
+          id: (Date.now() + 1).toString(),
+          text: randomReply,
+          sender: activeConversation.type === 'group' 
+            ? activeConversation.participants[Math.floor(Math.random() * (activeConversation.participants.length - 1))]
+            : { id: activeConversation.id, name: activeConversation.name, avatar: activeConversation.avatar },
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date(),
+          isOwn: false,
+          messageType: 'text',
+        };
+        
+        setMessages(prevMessages => [...prevMessages, replyMessage]);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }, 2000 + Math.random() * 2000);
+    }
+  };
+
+  const startNewChat = (user) => {
+    const existingConversation = conversations.find(conv => 
+      conv.type === 'direct' && 
+      conv.participants.some(p => p.id === user.id)
+    );
+
+    if (existingConversation) {
+      setActiveConversation(existingConversation);
+    } else {
+      const newConversation = {
+        id: Date.now().toString(),
+        name: user.name,
+        type: 'direct',
+        participants: [
+          { id: user.id, name: user.name, role: user.role },
+          { id: 'me', name: 'You', role: 'Driver' }
+        ],
+        lastMessage: '',
+        lastMessageTime: '',
+        lastMessageDate: new Date(),
+        unreadCount: 0,
+        avatar: user.avatar,
+        isOnline: true,
+      };
+      setConversations([newConversation, ...conversations]);
+      setActiveConversation(newConversation);
+      setMessages([]);
+    }
+    setShowNewChatModal(false);
+  };
+
+  const formatMessageTime = (date) => {
+    const now = new Date();
+    const messageDate = new Date(date);
+    const diffInHours = (now - messageDate) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 48) {
+      return 'Yesterday';
+    } else {
+      return messageDate.toLocaleDateString();
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Available': return '#4CAF50';
+      case 'Busy': return '#FF9800';
+      case 'In Call': return '#F44336';
+      case 'On Route': return '#2196F3';
+      default: return '#9E9E9E';
+    }
+  };
+
+  const filteredConversations = conversations.filter(conv =>
+    conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.participants.some(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const renderConversationItem = ({ item }) => (
+    <TouchableOpacity
+      style={[
+        styles.conversationItem,
+        activeConversation?.id === item.id && styles.activeConversationItem
+      ]}
+      onPress={() => setActiveConversation(item)}
+    >
+      <View style={styles.conversationInfo}>
+        <Image source={{ uri: item.avatar }} style={styles.conversationAvatar} />
+        {item.isOnline && <View style={styles.onlineIndicator} />}
+        
+        <View style={styles.conversationDetails}>
+          <View style={styles.conversationHeader}>
+            <Text style={styles.conversationName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.conversationTime}>{formatMessageTime(item.lastMessageDate)}</Text>
+          </View>
+          
+          <View style={styles.conversationFooter}>
+            <Text style={styles.lastMessage} numberOfLines={2}>
+              {item.lastMessage || 'No messages yet'}
+            </Text>
+            {item.unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadCount}>
+                  {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                </Text>
+              </View>
+            )}
+          </View>
+          
+          {item.type === 'group' && (
+            <Text style={styles.participantCount}>
+              {item.participants.length} participants
+            </Text>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderMessage = ({ item, index }) => (
+    <View style={[
+      styles.messageContainer,
+      item.isOwn ? styles.ownMessageContainer : styles.otherMessageContainer
+    ]}>
+      {!item.isOwn && (
+        <Image source={{ uri: item.sender.avatar }} style={styles.messageAvatar} />
+      )}
+      
+      <View style={[
+        styles.messageBubble,
+        item.isOwn ? styles.ownMessageBubble : styles.otherMessageBubble
+      ]}>
+        {!item.isOwn && activeConversation?.type === 'group' && (
+          <Text style={styles.messageSender}>{item.sender.name}</Text>
+        )}
+        
+        <Text style={[
+          styles.messageText,
+          item.isOwn ? styles.ownMessageText : styles.otherMessageText
+        ]}>
+          {item.text}
+        </Text>
+        
+        <Text style={[
+          styles.messageTime,
+          item.isOwn ? styles.ownMessageTime : styles.otherMessageTime
+        ]}>
+          {item.timestamp}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderTypingIndicator = () => {
+    if (typingUsers.length === 0) return null;
+    
+    return (
+      <Animated.View style={[styles.typingContainer, { opacity: fadeAnim }]}>
+        <Text style={styles.typingText}>
+          {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+        </Text>
+        <View style={styles.typingDots}>
+          <View style={styles.typingDot} />
+          <View style={styles.typingDot} />
+          <View style={styles.typingDot} />
+        </View>
+      </Animated.View>
+    );
+  };
+
+  const renderOnlineUser = ({ item }) => (
+    <TouchableOpacity
+      style={styles.onlineUserItem}
+      onPress={() => startNewChat(item)}
+    >
+      <Image source={{ uri: item.avatar }} style={styles.onlineUserAvatar} />
+      <View style={styles.onlineUserInfo}>
+        <Text style={styles.onlineUserName}>{item.name}</Text>
+        <Text style={styles.onlineUserRole}>{item.role}</Text>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+          <Text style={styles.onlineUserStatus}>{item.status}</Text>
+        </View>
+      </View>
+      <Text style={styles.lastSeenText}>{item.lastSeen}</Text>
+    </TouchableOpacity>
+  );
+
+  if (!activeConversation) {
+    // Conversation List View
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Messages</Text>
+          <TouchableOpacity
+            style={styles.newChatButton}
+            onPress={() => setShowNewChatModal(true)}
+          >
+            <Text style={styles.newChatButtonText}>+ New Chat</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search conversations..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>Loading conversations...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredConversations}
+            keyExtractor={(item) => item.id}
+            renderItem={renderConversationItem}
+            contentContainerStyle={styles.conversationsList}
+            showsVerticalScrollIndicator={false}
+            refreshing={isLoading}
+            onRefresh={loadConversations}
+          />
+        )}
+
+        {/* New Chat Modal */}
+        <Modal
+          visible={showNewChatModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowNewChatModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.newChatModal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Start New Chat</Text>
+                <TouchableOpacity onPress={() => setShowNewChatModal(false)}>
+                  <Text style={styles.closeButton}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.sectionTitle}>Available Users</Text>
+              <FlatList
+                data={onlineUsers}
+                keyExtractor={(item) => item.id}
+                renderItem={renderOnlineUser}
+                showsVerticalScrollIndicator={false}
+                style={styles.onlineUsersList}
+              />
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
+  // Individual Chat View
+  return (
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.chatHeader}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => setActiveConversation(null)}
+        >
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        
+        <Image source={{ uri: activeConversation.avatar }} style={styles.chatHeaderAvatar} />
+        
+        <View style={styles.chatHeaderInfo}>
+          <Text style={styles.chatHeaderName}>{activeConversation.name}</Text>
+          <Text style={styles.chatHeaderStatus}>
+            {activeConversation.type === 'group' 
+              ? `${activeConversation.participants.length} participants`
+              : activeConversation.isOnline ? 'Online' : 'Last seen recently'
+            }
+          </Text>
+        </View>
+        
+        {activeConversation.isOnline && activeConversation.type === 'direct' && (
+          <View style={styles.chatHeaderOnlineIndicator} />
+        )}
+        
+        <TouchableOpacity style={styles.moreButton}>
+          <Text style={styles.moreButtonText}>⋯</Text>
+        </TouchableOpacity>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.messagesLoadingContainer}>
+          <ActivityIndicator size="large" color="#2196F3" />
+          <Text style={styles.loadingText}>Loading messages...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        />
+      )}
+
+      {renderTypingIndicator()}
+
+      <View style={styles.messageInputContainer}>
+        <TextInput
+          style={styles.messageInput}
+          placeholder="Type a message..."
+          placeholderTextColor="#999"
+          value={messageText}
+          onChangeText={setMessageText}
+          multiline={true}
+          maxLength={1000}
+          textAlignVertical="center"
+        />
+        
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            !messageText.trim() && styles.sendButtonDisabled
+          ]}
+          onPress={sendMessage}
+          disabled={!messageText.trim()}
+        >
+          <Text style={styles.sendButtonText}>Send</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  newChatButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  newChatButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  searchContainer: {
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#f8f9fa',
+    color: '#333',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  messagesLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  conversationsList: {
+    paddingBottom: 20,
+  },
+  conversationItem: {
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  activeConversationItem: {
+    backgroundColor: '#e3f2fd',
+  },
+  conversationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  conversationAvatar: {
+    width: 55,
+    height: 55,
+    borderRadius: 27.5,
+    marginRight: 15,
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    left: 40,
+    top: 40,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#4CAF50',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  conversationDetails: {
+    flex: 1,
+  },
+  conversationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  conversationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    marginRight: 10,
+  },
+  conversationTime: {
+    fontSize: 12,
+    color: '#666',
+  },
+  conversationFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  lastMessage: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+    marginRight: 10,
+  },
+  unreadBadge: {
+    backgroundColor: '#2196F3',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadCount: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  participantCount: {
+    fontSize: 12,
+    color: '#999',
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  backButton: {
+    marginRight: 15,
+    padding: 5,
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#2196F3',
+    fontWeight: 'bold',
+  },
+  chatHeaderAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  chatHeaderInfo: {
+    flex: 1,
+  },
+  chatHeaderName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  chatHeaderStatus: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  chatHeaderOnlineIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#4CAF50',
+    marginRight: 10,
+  },
+  moreButton: {
+    padding: 5,
+  },
+  moreButtonText: {
+    fontSize: 20,
+    color: '#666',
+    transform: [{ rotate: '90deg' }],
+  },
+  messagesList: {
+    padding: 16,
+  },
+  messageContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-end',
+  },
+  ownMessageContainer: {
+    justifyContent: 'flex-end',
+  },
+  otherMessageContainer: {
+    justifyContent: 'flex-start',
+  },
+  messageAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+    alignSelf: 'flex-end',
+  },
+  messageBubble: {
+    maxWidth: '75%',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  ownMessageBubble: {
+    backgroundColor: '#2196F3',
+    borderBottomRightRadius: 6,
+  },
+  otherMessageBubble: {
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 6,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+  },
+  messageSender: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2196F3',
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  ownMessageText: {
+    color: '#fff',
+  },
+  otherMessageText: {
+    color: '#333',
+  },
+  messageTime: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  ownMessageTime: {
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'right',
+  },
+  otherMessageTime: {
+    color: '#999',
+  },
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  typingText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  typingDots: {
+    flexDirection: 'row',
+    marginLeft: 8,
+  },
+  typingDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#666',
+    marginHorizontal: 1,
+  },
+  messageInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  messageInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    fontSize: 16,
+    maxHeight: 120,
+    backgroundColor: '#f8f9fa',
+    color: '#333',
+  },
+  sendButton: {
+    backgroundColor: '#2196F3',
+    borderRadius: 25,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginLeft: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  sendButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  newChatModal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 20,
+    maxHeight: '75%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    fontSize: 20,
+    color: '#666',
+    padding: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  onlineUsersList: {
+    flex: 1,
+  },
+  onlineUserItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  onlineUserAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 15,
+  },
+  onlineUserInfo: {
+    flex: 1,
+  },
+  onlineUserName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 2,
+  },
+  onlineUserRole: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  onlineUserStatus: {
+    fontSize: 12,
+    color: '#666',
+  },
+  lastSeenText: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'right',
+  },
+});
+
+export default ChatScreen;

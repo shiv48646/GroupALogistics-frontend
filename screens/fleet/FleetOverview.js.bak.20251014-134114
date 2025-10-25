@@ -1,0 +1,664 @@
+﻿// screens/fleet/FleetOverview.js
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  StatusBar,
+  TouchableOpacity,
+  TouchableNativeFeedback,
+  ScrollView,
+  RefreshControl,
+  TextInput,
+  Dimensions,
+  Platform,
+  Alert
+} from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
+import { Ionicons } from '@expo/vector-icons';
+import { selectFilteredVehicles, selectAllVehicles } from '../../store/slices/fleetSlice';
+
+const { width } = Dimensions.get('window');
+const isAndroid = Platform.OS === 'android';
+
+const FleetOverview = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const allVehicles = useSelector(selectAllVehicles);
+  // Local filters state must be declared before using it to compute filtered lists
+  const [filters, setLocalFilters] = useState({ status: 'all', type: 'all' });
+
+  console.log('DEBUG Fleet state: vehicles=', allVehicles?.length);
+
+  // Local filtering
+  const vehicles = (allVehicles || []).filter(v => {
+    if (filters.status !== 'all' && v.status !== filters.status) return false;
+    if (filters.type !== 'all' && v.type.toLowerCase() !== filters.type) return false;
+    return true;
+  });
+  
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  }, []);
+
+  const filteredVehicles = vehicles.filter(vehicle => 
+    vehicle.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    vehicle.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    vehicle.driver?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const stats = {
+    total: vehicles.length,
+    active: vehicles.filter(v => v.status === 'active').length,
+    idle: vehicles.filter(v => v.status === 'idle').length,
+    maintenance: vehicles.filter(v => v.status === 'maintenance').length
+  };
+
+  const renderTouchable = (onPress, children, style = {}) => {
+    if (isAndroid) {
+      return (
+        <TouchableNativeFeedback
+          onPress={onPress}
+          background={TouchableNativeFeedback.Ripple('#e3f2fd', false)}
+        >
+          <View style={style}>{children}</View>
+        </TouchableNativeFeedback>
+      );
+    }
+    return (
+      <TouchableOpacity onPress={onPress} style={style} activeOpacity={0.7}>
+        {children}
+      </TouchableOpacity>
+    );
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return '#388e3c';
+      case 'idle': return '#f57c00';
+      case 'maintenance': return '#d32f2f';
+      default: return '#757575';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'active': return 'checkmark-circle';
+      case 'idle': return 'pause-circle';
+      case 'maintenance': return 'construct';
+      default: return 'help-circle';
+    }
+  };
+
+  const handleFilterChange = (filterType, value) => {
+    setLocalFilters(prev => ({ ...prev, [filterType]: value }));
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1976d2" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          {renderTouchable(
+            () => navigation.goBack(),
+            <Ionicons name="arrow-back" size={24} color="#fff" />,
+            styles.backButton
+          )}
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Fleet Management</Text>
+            <Text style={styles.headerSubtitle}>{stats.total} Total Vehicles</Text>
+          </View>
+          {renderTouchable(
+            () => navigation.navigate('AddVehicle'),
+            <Ionicons name="add-circle" size={28} color="#fff" />,
+            styles.addButton
+          )}
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#757575" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by registration, ID, or driver..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#9e9e9e"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#757575" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#1976d2']}
+          />
+        }
+      >
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <StatCard
+            title="Active"
+            count={stats.active}
+            icon="car-sport"
+            color="#388e3c"
+            onPress={() => handleFilterChange('status', 'active')}
+            isActive={filters.status === 'active'}
+          />
+          <StatCard
+            title="Idle"
+            count={stats.idle}
+            icon="pause"
+            color="#f57c00"
+            onPress={() => handleFilterChange('status', 'idle')}
+            isActive={filters.status === 'idle'}
+          />
+          <StatCard
+            title="Maintenance"
+            count={stats.maintenance}
+            icon="construct"
+            color="#d32f2f"
+            onPress={() => handleFilterChange('status', 'maintenance')}
+            isActive={filters.status === 'maintenance'}
+          />
+        </View>
+
+        {/* Filter Chips */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterContainer}
+        >
+          <FilterChip
+            label="All"
+            isActive={filters.status === 'all'}
+            onPress={() => handleFilterChange('status', 'all')}
+          />
+          <FilterChip
+            label="Active"
+            isActive={filters.status === 'active'}
+            onPress={() => handleFilterChange('status', 'active')}
+          />
+          <FilterChip
+            label="Idle"
+            isActive={filters.status === 'idle'}
+            onPress={() => handleFilterChange('status', 'idle')}
+          />
+          <FilterChip
+            label="Maintenance"
+            isActive={filters.status === 'maintenance'}
+            onPress={() => handleFilterChange('status', 'maintenance')}
+          />
+          <View style={styles.divider} />
+          <FilterChip
+            label="All Types"
+            isActive={filters.type === 'all'}
+            onPress={() => handleFilterChange('type', 'all')}
+          />
+          <FilterChip
+            label="Trucks"
+            isActive={filters.type === 'truck'}
+            onPress={() => handleFilterChange('type', 'truck')}
+          />
+          <FilterChip
+            label="Vans"
+            isActive={filters.type === 'van'}
+            onPress={() => handleFilterChange('type', 'van')}
+          />
+        </ScrollView>
+
+        {/* Vehicle List */}
+        <View style={styles.vehicleList}>
+          {filteredVehicles.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="car-outline" size={64} color="#bdbdbd" />
+              <Text style={styles.emptyText}>No vehicles found</Text>
+              <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
+            </View>
+          ) : (
+            filteredVehicles.map((vehicle) => (
+              <VehicleCard
+                key={vehicle.id}
+                vehicle={vehicle}
+                onPress={() => navigation.navigate('VehicleDetails', { vehicleId: vehicle.id })}
+                getStatusColor={getStatusColor}
+                getStatusIcon={getStatusIcon}
+              />
+            ))
+          )}
+        </View>
+
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </View>
+  );
+};
+
+// Stat Card Component
+const StatCard = ({ title, count, icon, color, onPress, isActive }) => {
+  const content = (
+    <View style={[styles.statCard, isActive && styles.statCardActive]}>
+      <View style={[styles.statIcon, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <Text style={styles.statCount}>{count}</Text>
+      <Text style={styles.statTitle}>{title}</Text>
+    </View>
+  );
+
+  if (isAndroid) {
+    return (
+      <TouchableNativeFeedback
+        onPress={onPress}
+        background={TouchableNativeFeedback.Ripple('#e3f2fd', false)}
+      >
+        {content}
+      </TouchableNativeFeedback>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+// Filter Chip Component
+const FilterChip = ({ label, isActive, onPress }) => {
+  const content = (
+    <View style={[styles.filterChip, isActive && styles.filterChipActive]}>
+      <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+        {label}
+      </Text>
+    </View>
+  );
+
+  if (isAndroid) {
+    return (
+      <TouchableNativeFeedback
+        onPress={onPress}
+        background={TouchableNativeFeedback.Ripple('#e3f2fd', true)}
+      >
+        {content}
+      </TouchableNativeFeedback>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+// Vehicle Card Component
+const VehicleCard = ({ vehicle, onPress, getStatusColor, getStatusIcon }) => {
+  const content = (
+    <View style={styles.vehicleCard}>
+      <View style={styles.vehicleHeader}>
+        <View style={styles.vehicleLeft}>
+          <View style={[styles.vehicleTypeIcon, { backgroundColor: getStatusColor(vehicle.status) + '15' }]}>
+            <Ionicons 
+              name={vehicle.type === 'Truck' ? 'car-sport' : 'car'} 
+              size={24} 
+              color={getStatusColor(vehicle.status)} 
+            />
+          </View>
+          <View style={styles.vehicleInfo}>
+            <Text style={styles.vehicleId}>{vehicle.id}</Text>
+            <Text style={styles.vehicleReg}>{vehicle.registrationNumber}</Text>
+          </View>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vehicle.status) }]}>
+          <Ionicons name={getStatusIcon(vehicle.status)} size={12} color="#fff" />
+          <Text style={styles.statusText}>{vehicle.status.toUpperCase()}</Text>
+        </View>
+      </View>
+
+      <View style={styles.vehicleDetails}>
+        <View style={styles.detailRow}>
+          <Ionicons name="cube-outline" size={14} color="#757575" />
+          <Text style={styles.detailText}>{vehicle.model}   {vehicle.capacity}</Text>
+        </View>
+        
+        {vehicle.driver && (
+          <View style={styles.detailRow}>
+            <Ionicons name="person-outline" size={14} color="#757575" />
+            <Text style={styles.detailText}>{vehicle.driver.name}</Text>
+          </View>
+        )}
+
+        {vehicle.currentTrip && (
+          <View style={styles.detailRow}>
+            <Ionicons name="location-outline" size={14} color="#757575" />
+            <Text style={styles.detailText}>
+              {vehicle.currentTrip.origin} ? {vehicle.currentTrip.destination}
+            </Text>
+          </View>
+        )}
+
+        {vehicle.maintenanceIssue && (
+          <View style={[styles.detailRow, styles.warningRow]}>
+            <Ionicons name="warning-outline" size={14} color="#d32f2f" />
+            <Text style={[styles.detailText, { color: '#d32f2f' }]}>
+              {vehicle.maintenanceIssue}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.vehicleFooter}>
+        <View style={styles.metricBox}>
+          <Ionicons name="speedometer-outline" size={16} color="#757575" />
+          <Text style={styles.metricText}>{vehicle.mileage.toLocaleString()} km</Text>
+        </View>
+        <View style={styles.metricBox}>
+          <Ionicons name="water-outline" size={16} color={vehicle.fuelLevel < 30 ? '#d32f2f' : '#757575'} />
+          <Text style={[styles.metricText, vehicle.fuelLevel < 30 && { color: '#d32f2f' }]}>
+            {vehicle.fuelLevel}%
+          </Text>
+        </View>
+        {vehicle.currentTrip && (
+          <View style={styles.metricBox}>
+            <Ionicons name="trending-up-outline" size={16} color="#388e3c" />
+            <Text style={styles.metricText}>{vehicle.currentTrip.progress}%</Text>
+          </View>
+        )}
+        <View style={styles.chevron}>
+          <Ionicons name="chevron-forward" size={20} color="#bdbdbd" />
+        </View>
+      </View>
+    </View>
+  );
+
+  if (isAndroid) {
+    return (
+      <TouchableNativeFeedback
+        onPress={onPress}
+        background={TouchableNativeFeedback.Ripple('#e3f2fd', false)}
+      >
+        {content}
+      </TouchableNativeFeedback>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fafafa'
+  },
+  header: {
+    backgroundColor: '#1976d2',
+    paddingTop: 16,
+    paddingBottom: 16,
+    elevation: 4
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8
+  },
+  headerCenter: {
+    flex: 1
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 2
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)'
+  },
+  addButton: {
+    padding: 4
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    height: 44
+  },
+  searchIcon: {
+    marginRight: 8
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#212121'
+  },
+  content: {
+    flex: 1
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    justifyContent: 'space-between'
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 4,
+    elevation: 2,
+    alignItems: 'center'
+  },
+  statCardActive: {
+    borderWidth: 2,
+    borderColor: '#1976d2'
+  },
+  statIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  statCount: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#212121',
+    marginBottom: 4
+  },
+  statTitle: {
+    fontSize: 12,
+    color: '#757575',
+    fontWeight: '500'
+  },
+  filterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16
+  },
+  filterChip: {
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0'
+  },
+  filterChipActive: {
+    backgroundColor: '#1976d2',
+    borderColor: '#1976d2'
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#757575'
+  },
+  filterChipTextActive: {
+    color: 'white'
+  },
+  divider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 8
+  },
+  vehicleList: {
+    paddingHorizontal: 16
+  },
+  vehicleCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2
+  },
+  vehicleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  vehicleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1
+  },
+  vehicleTypeIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12
+  },
+  vehicleInfo: {
+    flex: 1
+  },
+  vehicleId: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212121',
+    marginBottom: 2
+  },
+  vehicleReg: {
+    fontSize: 13,
+    color: '#757575'
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
+    marginLeft: 4
+  },
+  vehicleDetails: {
+    marginBottom: 12
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6
+  },
+  warningRow: {
+    backgroundColor: '#ffebee',
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 4
+  },
+  detailText: {
+    fontSize: 13,
+    color: '#616161',
+    marginLeft: 8,
+    flex: 1
+  },
+  vehicleFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f5f5f5'
+  },
+  metricBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16
+  },
+  metricText: {
+    fontSize: 12,
+    color: '#757575',
+    marginLeft: 4,
+    fontWeight: '500'
+  },
+  chevron: {
+    marginLeft: 'auto'
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#757575',
+    marginTop: 16
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9e9e9e',
+    marginTop: 4
+  },
+  bottomSpacing: {
+    height: 24
+  }
+});
+
+export default FleetOverview;
+
+
+
+
+
+
+
+
+
+
+
+

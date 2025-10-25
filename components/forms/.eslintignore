@@ -1,0 +1,10 @@
+# Ignore problematic example files
+components/forms/examples/FormsShowcase.js
+components/forms/examples/FormsExamples.js
+components/forms/examples/TestForm.js
+
+# Standard ignores
+node_modules/
+.expo/
+dist/
+build/
