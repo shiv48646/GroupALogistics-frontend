@@ -39,3 +39,16 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# Search result files
+*_search_*.txt
+suspected_*.txt
+*_suspects.txt
+*_error*.txt
+view_text_*.txt
+
+# Large log files
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

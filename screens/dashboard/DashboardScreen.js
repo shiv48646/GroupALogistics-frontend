@@ -1,4 +1,4 @@
-// screens/dashboard/DashboardScreen.js - Android-Optimized React Native Dashboard
+﻿// screens/dashboard/DashboardScreen.js - Android-Optimized React Native Dashboard
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -313,13 +313,12 @@ useFocusEffect(
               onPress={() => navigation.navigate('PendingOrders')}
             />
            <KPICard
-             title="Active Routes"
-             value={`${dashboardData.kpis.activeRoutes.value}/  
-             ${dashboardData.kpis.activeRoutes.total}`}
-             trend={dashboardData.kpis.activeRoutes.trend}
-             icon="map"
-             color="#388e3c"
-             onPress={() => navigation.navigate('Routes')}
+              title="Active Routes"
+              value={`${dashboardData.kpis.activeRoutes.value}/${dashboardData.kpis.activeRoutes.total}`}
+              trend={dashboardData.kpis.activeRoutes.trend}
+              icon="map"
+              color="#388e3c"
+              onPress={() => navigation.navigate('Routes')}
             />
             <KPICard
               title="On-Time Rate"
@@ -376,8 +375,7 @@ useFocusEffect(
               onPress={() => handleModuleNavigation('Attendance', 'Attendance')}
               status="active"
             />
-            />
-            <ModuleCard
+             <ModuleCard
              title="Route Planning"
              description="15 routes active"
              icon="map"
@@ -418,8 +416,7 @@ useFocusEffect(
                 onPress={() => handleModuleNavigation('Customers', 'CustomerManagement')}
                 status="active"
               />
-              />
-              <ModuleCard
+                <ModuleCard
                 title="Reports & Export"
                 description="Generate reports"
                 icon="document-text-outline"

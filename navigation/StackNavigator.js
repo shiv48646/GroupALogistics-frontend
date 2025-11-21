@@ -257,6 +257,11 @@ const StackNavigator = () => {
 
       {/*Fleet Management Screens*/}
       <Stack.Screen
+        name="Fleet"
+        component={FleetOverview}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="FleetOverview"
         component={FleetOverview}
         options={{ headerShown: false }}

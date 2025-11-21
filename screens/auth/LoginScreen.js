@@ -6,28 +6,26 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Alert,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { login } from '../../store/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginSuccess } from '../../store/slices/authSlice';
+import { authService } from '../../services/authService';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
+  const authState = useSelector((state) => state.auth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Demo users for testing
   const demoUsers = [
+    { email: 'testnew@example.com', password: 'Password123!', role: 'admin', name: 'Test User New' },
     { email: 'admin@logistics.com', password: 'admin123', role: 'admin', name: 'Admin User' },
-    { email: 'manager@logistics.com', password: 'manager123', role: 'manager', name: 'Manager' },
-    { email: 'driver@logistics.com', password: 'driver123', role: 'driver', name: 'John Driver' },
-    { email: 'dispatcher@logistics.com', password: 'dispatch123', role: 'dispatcher', name: 'Dispatcher' },
   ];
 
   const handleLogin = async () => {
@@ -38,37 +36,45 @@ const LoginScreen = ({ navigation }) => {
 
     setLoading(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      // Check demo users
-      const user = demoUsers.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-      );
+    try {
+      console.log('=== Before Login ===');
+      console.log('Auth State:', authState);
+      
+      const response = await authService.login(email, password);
+      
+      console.log('=== Login API Response ===');
+      console.log('Response:', response);
+      
+      const payload = {
+        user: response.user,
+        token: response.accessToken,
+      };
+      
+      console.log('=== Dispatching loginSuccess ===');
+      console.log('Payload:', payload);
+      
+      dispatch(loginSuccess(payload));
+      
+      console.log('=== After Dispatch ===');
+      console.log('Auth State should update now...');
+      
+      // Small delay to let Redux update
+      setTimeout(() => {
+        console.log('Auth State after dispatch:', authState);
+      }, 100);
 
-      if (user) {
-        // Dispatch login action
-        dispatch(login({
-          user: {
-            id: Math.random().toString(36).substr(2, 9),
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            avatar: 'https://ui-avatars.com/api/?name=' + user.name.replace(' ', '+'),
-          },
-          token: 'demo_token_' + Math.random().toString(36).substr(2, 9),
-        }));
-
-        Alert.alert('Success', `Welcome ${user.name}!`);
-      } else {
-        Alert.alert('Error', 'Invalid email or password');
-      }
-
+      Alert.alert('Success', 'Welcome ' + response.user.name + '!');
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', error.message || 'Invalid email or password');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
-  const fillDemoCredentials = (userType) => {
-    const user = demoUsers.find(u => u.role === userType);
+  const fillDemoCredentials = (index) => {
+    const user = demoUsers[index];
     if (user) {
       setEmail(user.email);
       setPassword(user.password);
@@ -81,19 +87,16 @@ const LoginScreen = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        {/* Logo */}
         <View style={styles.logoContainer}>
           <Icon name="truck-fast" size={64} color="#2563EB" />
           <Text style={styles.appName}>GroupA Logistics</Text>
           <Text style={styles.tagline}>Smart Delivery Management</Text>
         </View>
 
-        {/* Login Form */}
         <View style={styles.formContainer}>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue</Text>
 
-          {/* Email Input */}
           <View style={styles.inputContainer}>
             <Icon name="email-outline" size={20} color="#6B7280" style={styles.inputIcon} />
             <TextInput
@@ -107,7 +110,6 @@ const LoginScreen = ({ navigation }) => {
             />
           </View>
 
-          {/* Password Input */}
           <View style={styles.inputContainer}>
             <Icon name="lock-outline" size={20} color="#6B7280" style={styles.inputIcon} />
             <TextInput
@@ -130,12 +132,10 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Forgot Password */}
           <TouchableOpacity style={styles.forgotPassword}>
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          {/* Login Button */}
           <TouchableOpacity
             style={[styles.loginButton, loading && styles.loginButtonDisabled]}
             onPress={handleLogin}
@@ -146,46 +146,29 @@ const LoginScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
 
-          {/* Demo Accounts */}
           <View style={styles.demoSection}>
             <Text style={styles.demoTitle}>Quick Login (Demo)</Text>
             <View style={styles.demoButtons}>
               <TouchableOpacity
                 style={styles.demoButton}
-                onPress={() => fillDemoCredentials('admin')}
+                onPress={() => fillDemoCredentials(0)}
               >
                 <Icon name="shield-account" size={16} color="#2563EB" />
-                <Text style={styles.demoButtonText}>Admin</Text>
+                <Text style={styles.demoButtonText}>Test Admin</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.demoButton}
-                onPress={() => fillDemoCredentials('manager')}
+                onPress={() => fillDemoCredentials(1)}
               >
                 <Icon name="account-tie" size={16} color="#2563EB" />
-                <Text style={styles.demoButtonText}>Manager</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.demoButton}
-                onPress={() => fillDemoCredentials('driver')}
-              >
-                <Icon name="truck" size={16} color="#2563EB" />
-                <Text style={styles.demoButtonText}>Driver</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.demoButton}
-                onPress={() => fillDemoCredentials('dispatcher')}
-              >
-                <Icon name="clipboard-account" size={16} color="#2563EB" />
-                <Text style={styles.demoButtonText}>Dispatch</Text>
+                <Text style={styles.demoButtonText}>Demo Admin</Text>
               </TouchableOpacity>
             </View>
+            <Text style={styles.apiNote}>? API Connected!</Text>
           </View>
         </View>
 
-        {/* Footer */}
         <Text style={styles.footer}>
           Don't have an account? <Text style={styles.signupLink}>Sign Up</Text>
         </Text>
@@ -300,12 +283,10 @@ const styles = StyleSheet.create({
   },
   demoButtons: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
   demoButton: {
     flex: 1,
-    minWidth: '45%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -318,6 +299,13 @@ const styles = StyleSheet.create({
   demoButtonText: {
     fontSize: 13,
     color: '#2563EB',
+    fontWeight: '600',
+  },
+  apiNote: {
+    fontSize: 11,
+    color: '#10B981',
+    textAlign: 'center',
+    marginTop: 12,
     fontWeight: '600',
   },
   footer: {
