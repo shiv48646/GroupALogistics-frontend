@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ⚡ IMPORTANT: Replace with your computer's IP address
-const API_URL = 'http://192.168.1.18:5000';
+const API_URL = 'https://groupalogistics-backend.onrender.com';
 
 const api = {
   baseURL: API_URL,
