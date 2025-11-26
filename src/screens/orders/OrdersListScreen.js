@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { orderService } from '../../services';  // ✅ FIXED IMPORT
+import { orderService } from '../../services';
 
 const OrdersListScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
@@ -29,12 +29,7 @@ const OrdersListScreen = ({ navigation }) => {
       }
 
       const response = await orderService.getOrders(pageToLoad, PAGE_SIZE);
-
-      // Handle different response structures
-      const ordersFromApi =
-        response?.data?.orders ??
-        response?.orders ??
-        [];
+      const ordersFromApi = response?.data?.orders ?? response?.orders ?? [];
 
       setOrders(Array.isArray(ordersFromApi) ? ordersFromApi : []);
       setPage(pageToLoad);

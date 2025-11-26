@@ -242,5 +242,4 @@ class AttendanceApi {
     }
   }
 }
-
 export default new AttendanceApi();

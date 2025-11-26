@@ -1,238 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  RefreshControl,
-  Alert,
-} from 'react-native';
-import orderService from '../../services/orderService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const OrdersListScreen = ({ navigation }) => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
+// ⚡ IMPORTANT: Replace with your computer's IP address
+const API_URL = 'https://groupalogistics-backend.onrender.com';
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const loadOrders = async () => {
-    try {
-      const response = await orderService.getOrders(page, 20);
-      setOrders(response.data.orders);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load orders');
-      console.error(error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadOrders();
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: '#FF9800',
-      processing: '#2196F3',
-      shipped: '#9C27B0',
-      delivered: '#4CAF50',
-      cancelled: '#f44336',
+const api = {
+  baseURL: API_URL,
+  
+  async getToken() {
+    return await AsyncStorage.getItem('token');
+  },
+  
+  async setToken(token) {
+    await AsyncStorage.setItem('token', token);
+  },
+  
+  async removeToken() {
+    await AsyncStorage.removeItem('token');
+  },
+  
+  async request(endpoint, options = {}) {
+    const token = await this.getToken();
+    
+    const config = {
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...options.headers,
+      },
+      ...(options.body && { body: JSON.stringify(options.body) }),
     };
-    return colors[status] || '#999';
-  };
-
-  const renderOrderCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetail', { orderId: item._id })}
-    >
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderNumber}>📦 {item.orderNumber}</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) },
-          ]}
-        >
-          <Text style={styles.statusText}>{item.status}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.customerName}>
-        Customer: {item.customer?.name || 'N/A'}
-      </Text>
-
-      <View style={styles.orderDetails}>
-        <Text style={styles.detailText}>
-          Items: {item.items?.length || 0}
-        </Text>
-        <Text style={styles.amount}>₹{item.totalAmount}</Text>
-      </View>
-
-      <Text style={styles.date}>
-        {new Date(item.createdAt).toLocaleDateString()}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading orders...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={orders}
-        renderItem={renderOrderCard}
-        keyExtractor={(item) => item._id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No orders found</Text>
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => navigation.navigate('CreateOrder')}
-            >
-              <Text style={styles.createButtonText}>Create First Order</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        contentContainerStyle={styles.listContent}
-      />
-
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('CreateOrder')}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, config);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('API Error:', error);
+      throw error;
+    }
+  },
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    padding: 16,
-  },
-  orderCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  orderNumber: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  customerName: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  orderDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  amount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  date: {
-    fontSize: 12,
-    color: '#999',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-    marginBottom: 20,
-  },
-  createButton: {
-    backgroundColor: '#2196F3',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  createButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#2196F3',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: '300',
-  },
-});
-
-export default OrdersListScreen;
+export default api;
