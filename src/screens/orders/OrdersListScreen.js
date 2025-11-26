@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,40 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import orderService from '../../services/orderService';
+import { orderService } from '../../services';  // ✅ FIXED IMPORT
 
 const OrdersListScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
-    loadOrders();
+    loadOrders(1);
   }, []);
 
-  const loadOrders = async () => {
+  const loadOrders = async (pageToLoad = 1) => {
     try {
-      const response = await orderService.getOrders(page, 20);
-      setOrders(response.data.orders);
+      if (!refreshing) {
+        setLoading(true);
+      }
+
+      const response = await orderService.getOrders(pageToLoad, PAGE_SIZE);
+
+      // Handle different response structures
+      const ordersFromApi =
+        response?.data?.orders ??
+        response?.orders ??
+        [];
+
+      setOrders(Array.isArray(ordersFromApi) ? ordersFromApi : []);
+      setPage(pageToLoad);
     } catch (error) {
+      console.error('Failed to load orders', error);
       Alert.alert('Error', 'Failed to load orders');
-      console.error(error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -35,7 +49,7 @@ const OrdersListScreen = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadOrders();
+    loadOrders(1);
   };
 
   const getStatusColor = (status) => {
@@ -49,44 +63,53 @@ const OrdersListScreen = ({ navigation }) => {
     return colors[status] || '#999';
   };
 
-  const renderOrderCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetail', { orderId: item._id })}
-    >
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderNumber}>📦 {item.orderNumber}</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) },
-          ]}
-        >
-          <Text style={styles.statusText}>{item.status}</Text>
+  const renderOrderCard = ({ item }) => {
+    const createdAt = item.createdAt ? new Date(item.createdAt) : null;
+
+    return (
+      <TouchableOpacity
+        style={styles.orderCard}
+        onPress={() => navigation.navigate('OrderDetail', { orderId: item._id })}
+      >
+        <View style={styles.orderHeader}>
+          <Text style={styles.orderNumber}>
+            📦 {item.orderNumber || item._id}
+          </Text>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.status) },
+            ]}
+          >
+            <Text style={styles.statusText}>{item.status || 'unknown'}</Text>
+          </View>
         </View>
-      </View>
 
-      <Text style={styles.customerName}>
-        Customer: {item.customer?.name || 'N/A'}
-      </Text>
-
-      <View style={styles.orderDetails}>
-        <Text style={styles.detailText}>
-          Items: {item.items?.length || 0}
+        <Text style={styles.customerName}>
+          Customer: {item.customer?.name || 'N/A'}
         </Text>
-        <Text style={styles.amount}>₹{item.totalAmount}</Text>
-      </View>
 
-      <Text style={styles.date}>
-        {new Date(item.createdAt).toLocaleDateString()}
-      </Text>
-    </TouchableOpacity>
-  );
+        <View style={styles.orderDetails}>
+          <Text style={styles.detailText}>
+            Items: {Array.isArray(item.items) ? item.items.length : 0}
+          </Text>
+          <Text style={styles.amount}>
+            ₹{item.totalAmount != null ? item.totalAmount : '0'}
+          </Text>
+        </View>
 
-  if (loading) {
+        <Text style={styles.date}>
+          {createdAt ? createdAt.toLocaleDateString() : 'No date'}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading && !refreshing && orders.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading orders...</Text>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={{ marginTop: 8 }}>Loading orders...</Text>
       </View>
     );
   }
@@ -96,7 +119,7 @@ const OrdersListScreen = ({ navigation }) => {
       <FlatList
         data={orders}
         renderItem={renderOrderCard}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => String(item._id)}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -111,7 +134,9 @@ const OrdersListScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         )}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={
+          orders.length === 0 ? styles.emptyListContent : styles.listContent
+        }
       />
 
       <TouchableOpacity
@@ -135,6 +160,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
+    padding: 16,
+  },
+  emptyListContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     padding: 16,
   },
   orderCard: {

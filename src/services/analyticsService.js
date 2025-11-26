@@ -1,16 +1,48 @@
-import api from './api';
+﻿import api from './api';
 
-const analyticsService = {
-  async getDashboard() {
-    return await api.request('/api/analytics/dashboard');
+export const analyticsService = {
+  // Get dashboard data
+  getDashboard: async () => {
+    try {
+      const response = await api.get('/analytics/dashboard');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   },
-  
-  async getRevenueTrends(days = 30) {
-    return await api.request(`/api/analytics/revenue-trends?days=${days}`);
+
+  // Get revenue analytics
+  getRevenue: async (startDate, endDate) => {
+    try {
+      const response = await api.get('/analytics/revenue', {
+        params: { startDate, endDate }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   },
-  
-  async getTopCustomers(limit = 10) {
-    return await api.request(`/api/analytics/top-customers?limit=${limit}`);
+
+  // Get order statistics
+  getOrderStats: async (period = '30days') => {
+    try {
+      const response = await api.get('/analytics/orders', {
+        params: { period }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get fleet analytics
+  getFleetAnalytics: async () => {
+    try {
+      const response = await api.get('/analytics/fleet');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   },
 };
 

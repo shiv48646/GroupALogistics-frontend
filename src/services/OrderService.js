@@ -1,26 +1,60 @@
-import api from './api';
+﻿import api from './api';
 
-const orderService = {
-  async getOrders(page = 1, limit = 10) {
-    return await api.request(`/api/orders?page=${page}&limit=${limit}`);
+export const orderService = {
+  getOrders: async (page = 1, limit = 20, params = {}) => {
+    try {
+      const response = await api.get('/orders', { 
+        params: { page, limit, ...params }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   },
-  
-  async getOrder(id) {
-    return await api.request(`/api/orders/${id}`);
+
+  getOrder: async (orderId) => {
+    try {
+      const response = await api.get(`/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   },
-  
-  async createOrder(orderData) {
-    return await api.request('/api/orders', {
-      method: 'POST',
-      body: orderData,
-    });
+
+  createOrder: async (orderData) => {
+    try {
+      const response = await api.post('/orders', orderData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   },
-  
-  async updateOrder(id, orderData) {
-    return await api.request(`/api/orders/${id}`, {
-      method: 'PUT',
-      body: orderData,
-    });
+
+  updateOrder: async (orderId, orderData) => {
+    try {
+      const response = await api.put(`/orders/${orderId}`, orderData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  updateOrderStatus: async (orderId, status) => {
+    try {
+      const response = await api.patch(`/orders/${orderId}/status`, { status });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  deleteOrder: async (orderId) => {
+    try {
+      const response = await api.delete(`/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   },
 };
 
